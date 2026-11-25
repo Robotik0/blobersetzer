@@ -77,8 +77,8 @@ footer{text-align:center;color:var(--mut);font-size:14px;padding-top:34px;paddin
   </section>
 </main>
 <footer>
-  <p>Blob ist Morsecode: blob = Punkt, fish = Strich, ein Leerzeichen trennt Buchstaben, ein Schrägstrich trennt Wörter. Blob kompakt schreibt Text als Blobfisch-Wörter (BlobiFishoBlobu …), kürzer als Blob und mit Groß- und Kleinschreibung. Mit „Klartext“ übersetzt du beides zurück, bei Blob kompakt auch klein- oder GROSSgeschrieben und mit Zeilenumbrüchen.</p>
-  <p>Alles Blobbige läuft lokal in deinem Browser. Nur Übersetzungen in oder aus echten Sprachen laufen über MyMemory, dafür wird dein Text online gesendet.</p>
+  <p>Blob ist Morsecode: blob = Punkt, fish = Strich. Blob kompakt ist kürzer und behält die Schreibweise. Klartext zeigt nur den entschlüsselten Text, ohne Übersetzung.</p>
+  <p>Alles Blobbige läuft lokal im Browser. Nur Übersetzungen in oder aus Sprachen laufen über MyMemory.</p>
   <p>© 2026 Blobigames &amp; Co.</p>
 </footer>
 <div id="toast" role="status"></div>
@@ -97,17 +97,34 @@ $('#dst').innerHTML='<optgroup label="Blob"><option value="blob">Blob</option><o
 const MT=`A.- B-... C-.-. D-.. E. F..-. G--. H.... I.. J.--- K-.- L.-.. M-- N-. O--- P.--. Q--.- R.-. S... T- U..- V...- W.-- X-..- Y-.-- Z--.. 0----- 1.---- 2..--- 3...-- 4....- 5..... 6-.... 7--... 8---.. 9----. ...-.-.- ,--..-- ?..--.. '.----. !-.-.-- /-..-. (-.--. )-.--.- &.-... :---... ;-.-.-. =-...- +.-.-. --....- _..--.- ".-..-. @.--.-. Ä.-.- Ö---. Ü..-- ß...--.. É..-.. Ñ--.-- Ç-.-.. À.--.- È.-..-`;
 const E=new Map(),D=new Map();
 for(const e of MT.split(' ')){E.set(e[0],e.slice(1));D.set(e.slice(1),e[0])}
+// Russian/Bulgarian Morse reuses the Latin codes, so the code alone can't tell the scripts apart.
+// A single switch group (-...- = fishblobblobblobfish) is written whenever the text changes between Latin and Cyrillic.
+const MC='А.- Б-... В.-- Г--. Д-.. Е. Ж...- З--.. И.. Й.--- К-.- Л.-.. М-- Н-. О--- П.--. Р.-. С... Т- У..- Ф..-. Х.... Ц-.-. Ч---. Ш---- Щ--.- Ъ--.-- Ы-.-- Ь-..- Э..-.. Ю..-- Я.-.-. Ї.---.';
+const EC=new Map(),DC=new Map(),SW='-...-';
+for(const e of MC.split(' ')){EC.set(e[0],e.slice(1));DC.set(e.slice(1),e[0])}
+const toBlob=k=>k.replace(/\./g,'blob').replace(/-/g,'fish');
 function encBlob(t){
+  let cyr=false;
   return t.normalize('NFC').replace(/[’‘]/g,"'").replace(/[–—]/g,'-').split('\n').map(line=>
     line.split(/\s+/).filter(Boolean).map(w=>[...w].map(c=>{
+      const kc=EC.get(c.toUpperCase());
+      if(kc!==undefined){const sw=cyr?'':toBlob(SW)+' ';cyr=true;return sw+toBlob(kc)}
       const k=E.get(c)??E.get(c.toUpperCase());
-      return k?k.replace(/\./g,'blob').replace(/-/g,'fish'):c;
+      if(!k)return c;
+      const sw=cyr&&/^[A-Za-z]$/.test(c)?toBlob(SW)+' ':'';
+      if(sw)cyr=false;
+      return sw+toBlob(k);
     }).join(' ')).join(' / ')).join('\n');
 }
 function decBlob(t){
+  let cyr=false;
   return t.split('\n').map(line=>line.split(/\s+/).filter(Boolean).map(k=>{
     if(k==='/')return ' ';
-    if(/^(?:blob|fish)+$/i.test(k))return (D.get(k.toLowerCase().replace(/blob/g,'.').replace(/fish/g,'-'))||'?').toLowerCase();
+    if(/^(?:blob|fish)+$/i.test(k)){
+      const c=k.toLowerCase().replace(/blob/g,'.').replace(/fish/g,'-');
+      if(c===SW){cyr=!cyr;return ''}
+      return ((cyr&&DC.get(c))||D.get(c)||'?').toLowerCase();
+    }
     return k;
   }).join('')).join('\n');
 }
@@ -117,7 +134,12 @@ const K=Math.log2(T.length),TI=new Map(T.map((w,i)=>[w,i]));
 const SYM=' etaoinshrdl'.split('').concat(['#sh','.'],'cumwfgypbvkjxqz'.split(''),['#pu','#um','#rw']);
 const I=new Map(SYM.map((x,i)=>[x,i])),SH=I.get('#sh');
 const UM='äöüß',UB='aous',P='0123456789.,!?\'"-:;()\n/@#%&*+=’–';
+// Shortcuts: the plain words blob, fish and blobfish are written as Blob, Fish and BlobFish (and read back the same way).
+// One word is only 4 bits, so Blob and Fish never carried a message. BlobFish used to be the one-letter message "e";
+// that message now ends in Fishi instead (the decoder ignores padding bits, so it still reads as "e").
+const SC={blob:'Blob',fish:'Fish',blobfish:'BlobFish'};
 function encCompact(t){
+  if(Object.hasOwn(SC,t))return SC[t];
   const s=[];
   for(const ch of t.normalize('NFC')){
     const lo=ch.toLowerCase(),cap=lo!==ch&&lo.length===1,b=cap?lo:ch;
@@ -130,7 +152,7 @@ function encCompact(t){
   while(bits.length%K)bits+='0';
   let o='';
   for(let i=0;i<bits.length;i+=K){const w=T[parseInt(bits.slice(i,i+K),2)];o+=w[0].toUpperCase()+w.slice(1)}
-  return o;
+  return o==='BlobFish'?'BlobFishi':o;
 }
 // Words are matched greedily, longest first. All words start with b or f and no word starts with a suffix letter,
 // so this is unambiguous and also reads lowercase, UPPERCASE and line-wrapped Blob kompakt.
@@ -142,7 +164,9 @@ function splitWords(run,strict){
 }
 const cTokens=t=>splitWords((t.match(/[A-Za-z]+/g)||[]).join('').toLowerCase());
 function decCompact(t){
-  const bits=cTokens(t).map(w=>TI.get(w)).filter(i=>i!==undefined).map(i=>i.toString(2).padStart(K,'0')).join('');
+  const tw=cTokens(t),key=tw.length<3?tw.join(''):'';
+  if(Object.hasOwn(SC,key))return key;
+  const bits=tw.map(w=>TI.get(w)).filter(i=>i!==undefined).map(i=>i.toString(2).padStart(K,'0')).join('');
   const s=[];for(let i=0;i+5<=bits.length;i+=5)s.push(parseInt(bits.slice(i,i+5),2));
   let r='',up=false,i=0;
   while(i<s.length){
@@ -160,9 +184,16 @@ function decCompact(t){
 // Auto-detect: lowercase blob/fish groups separated by spaces = Blob (Morse); a text made only of Blob kompakt words = Blob kompakt.
 function kindOf(t){
   const x=t.trim();
-  if(/^(?:(?:blob|fish)+|\/)(?:\s+(?:(?:blob|fish)+|\/))*$/.test(x)&&/\s/.test(x))return 'blob';
+  // Morse: groups of blob/fish (any case), "/" for word breaks, and single leftover symbols that encBlob passes through (- + @ ä ...).
+  const tk=x.split(/\s+/);let g=0,ok=true;
+  for(const k of tk){
+    if(/^(?:blob|fish)+$/i.test(k))g++;
+    else if(k==='/'||([...k].length===1&&!/[A-Za-z0-9]/.test(k)))continue;
+    else{ok=false;break}
+  }
+  if(ok&&g>=1&&tk.length>=2)return 'blob';
   // A single Morse letter without spaces (e.g. "blobfish") stays normal text.
-  if(/^(?:blob|fish)+$/.test(x)||!/^[A-Za-z\s]+$/.test(x))return 'text';
+  if(/^(?:blob|fish)+$/i.test(x)||!/^[A-Za-z\s]+$/.test(x))return 'text';
   const w=splitWords(x.replace(/\s+/g,'').toLowerCase(),true);
   if(!w)return 'text';const n=w.length;
   // Real CamelCase (BlobFish...) needs 2 words; without capitals it needs 4, so "Blobfish" stays normal text.
@@ -190,7 +221,7 @@ function chunks(t){
 const dec=s=>new DOMParser().parseFromString(s,'text/html').documentElement.textContent;
 const cache=new Map();
 
-async function translate(text,s,d){
+async function translate(text,s,d,fb){
   ctl=new AbortController();const sg=ctl.signal;let res='';
   try{
     for(const p of chunks(text)){
@@ -210,6 +241,7 @@ async function translate(text,s,d){
     out.textContent=res;$s.textContent='';
   }catch(e){
     if(sg.aborted||(e&&e.name==='AbortError'))return;
+    out.textContent=fb||'';
     $s.textContent=e&&e.status==='429'?'Tageslimit des Übersetzungsdienstes erreicht.':e&&e.status?'Dienst meldet: '+(e.msg||'Fehler'):'Keine Verbindung zum Übersetzungsdienst.';
   }
 }
@@ -220,7 +252,7 @@ function update(){
   $('#cnt').textContent=raw.length+' Zeichen';
   const kind=src==='auto'?kindOf(raw):(src==='blob'||src==='compact'?src:'text');
   const text=kind==='blob'?decBlob(raw):kind==='compact'?decCompact(raw):raw;
-  const enc={blob:encBlob,compact:encCompact,plain:x=>x}[src==='auto'&&kind===dst?'plain':dst];
+  const enc={blob:encBlob,compact:encCompact,plain:x=>x}[dst];
   if(enc){
     out.textContent=enc(text);
     $s.textContent=raw.trim()?out.textContent.length+' Zeichen':'';
@@ -229,7 +261,8 @@ function update(){
   if(!text.trim()){out.textContent='';$s.textContent='';return}
   if(kind==='text'&&src===dst){out.textContent=text;$s.textContent='';return}
   $s.textContent='Übersetze …';
-  timer=setTimeout(()=>translate(text,kind==='text'&&src!=='auto'?src:'Autodetect',dst),700);
+  const fb=kind==='text'?'':text;if(fb)out.textContent=fb;
+  timer=setTimeout(()=>translate(text,kind==='text'&&src!=='auto'?src:'Autodetect',dst,fb),700);
 }
 async function copy(){
   const t=out.textContent;if(!t)return toast('Noch nichts zu kopieren.');
