@@ -21,8 +21,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding-top
 .brand img{width:44px;height:44px;object-fit:contain}
 .r{display:flex;gap:10px;align-items:center}
 .ico{display:inline-flex;align-items:center;justify-content:center;padding:0;width:42px;height:42px;border-radius:50%;border:2px solid var(--bd);background:var(--sf);color:var(--tx);font-size:18px;cursor:pointer}
-.pill,.btn{display:inline-block;border:0;border-radius:999px;padding:10px 22px;font:600 16px Fredoka,Nunito,sans-serif;color:#fff;text-decoration:none;cursor:pointer;background:linear-gradient(135deg,#f77fab,#e8508d);box-shadow:0 6px 16px rgba(232,80,141,.35);transition:transform .15s}
-.pill:hover,.btn:hover{transform:translateY(-2px) scale(1.03)}.btn:disabled{opacity:.6;cursor:wait;transform:none}
 .hero{text-align:center;padding:30px 0 22px}
 .hero img{width:170px;height:auto;animation:bob 4s ease-in-out infinite;filter:drop-shadow(0 14px 18px rgba(214,63,122,.3))}
 h1{font:700 clamp(40px,8vw,68px)/1.05 Fredoka,Nunito,sans-serif;margin:6px 0 8px;color:var(--ac)}
@@ -39,14 +37,14 @@ textarea{resize:vertical;display:block}textarea:focus{outline:3px solid #f77fab5
 .out{background:var(--soft)}
 .foot{display:flex;gap:12px;align-items:center;margin-top:8px;min-height:40px;color:var(--mut);font-size:14px;padding:0 6px}.foot .sp{flex:1}
 .lnk{border:0;background:none;color:var(--ac);font:700 14px Nunito,sans-serif;cursor:pointer;padding:6px}.lnk:hover{text-decoration:underline}
-body.blob .only-x{display:none!important}
+footer p{margin:6px auto;max-width:720px}
 footer{text-align:center;color:var(--mut);font-size:14px;padding-top:34px;padding-bottom:34px}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);background:#e8508d;color:#fff;padding:10px 20px;border-radius:999px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:9;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 @media (max-width:780px){.panes{grid-template-columns:1fr}textarea,.out{min-height:170px}.card{padding:16px}}
 </style>
 </head>
-<body class="blob">
+<body>
 <div class="bg" aria-hidden="true"><i class="b1"></i><i class="b2"></i></div>
 <header>
   <a class="brand" href="#"><img id="hl" alt=""><span>Blobersetzer</span></a>
@@ -59,8 +57,8 @@ footer{text-align:center;color:var(--mut);font-size:14px;padding-top:34px;paddin
   </section>
   <section class="card">
     <div class="bar">
-      <span class="only-x">Von</span><select class="only-x" id="src" aria-label="Ausgangssprache"></select>
-      <button class="ico only-x" id="swap" aria-label="Sprachen tauschen" style="width:38px;height:38px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"/></svg></button>
+      <span>Von</span><select id="src" aria-label="Ausgangssprache"></select>
+      <button class="ico" id="swap" aria-label="Sprachen tauschen" style="width:38px;height:38px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4"/></svg></button>
       <span>Nach</span><select id="dst" aria-label="Zielsprache"></select>
       
     </div>
@@ -73,53 +71,115 @@ footer{text-align:center;color:var(--mut);font-size:14px;padding-top:34px;paddin
       <div class="pane">
         <label>Ergebnis</label>
         <div class="out" id="out" dir="auto" aria-live="polite"></div>
-        <div class="foot"><span id="stat"></span><span class="sp"></span><button class="btn only-x" id="go">Übersetzen</button><button class="lnk" id="cp">Kopieren</button></div>
+        <div class="foot"><span id="stat"></span><span class="sp"></span><button class="lnk" id="cp">Kopieren</button></div>
       </div>
     </div>
   </section>
 </main>
-<footer>© 2026 Blobigames &amp; Co. · Der Blob-Modus funktioniert offline. Echte Übersetzungen laufen über MyMemory, dafür wird der Text online gesendet.</footer>
+<footer>
+  <p>Blob ist Morsecode: blob = Punkt, fish = Strich, ein Leerzeichen trennt Buchstaben, ein Schrägstrich trennt Wörter. Blob kompakt schreibt Text als Blobfisch-Wörter (BlobiFishoBlobu …), kürzer als Blob und mit Groß- und Kleinschreibung. Mit „Klartext“ übersetzt du beides zurück, bei Blob kompakt auch klein- oder GROSSgeschrieben und mit Zeilenumbrüchen.</p>
+  <p>Alles Blobbige läuft lokal in deinem Browser. Nur Übersetzungen in oder aus echten Sprachen laufen über MyMemory, dafür wird dein Text online gesendet.</p>
+  <p>© 2026 Blobigames &amp; Co.</p>
+</footer>
 <div id="toast" role="status"></div>
 
 <script>
 const $=s=>document.querySelector(s),inp=$('#inp'),out=$('#out');
-let words=0,busy=false;
+let ctl=null,timer=0;
 $('#hl').src=$('#logo').src;
 const LG=[["en","Englisch"],["de","Deutsch"],["fr","Französisch"],["es","Spanisch"],["it","Italienisch"],["pt","Portugiesisch"],["nl","Niederländisch"],["pl","Polnisch"],["sv","Schwedisch"],["tr","Türkisch"],["ru","Russisch"],["uk","Ukrainisch"],["ar","Arabisch"],["hi","Hindi"],["zh-CN","Chinesisch"],["ja","Japanisch"],["ko","Koreanisch"],["la","Latein"]];
 const opts=LG.map(([v,l])=>'<option value="'+v+'">'+l+'</option>').join('');
-$('#src').innerHTML='<option value="auto">Sprache erkennen</option>'+opts;
-$('#dst').innerHTML='<option value="blob">Blob</option>'+opts;
-const isBlob=()=>$('#dst').value==='blob';
+$('#src').innerHTML='<option value="auto">Sprache erkennen</option><optgroup label="Blob"><option value="blob">Blob</option><option value="compact">Blob kompakt</option></optgroup><optgroup label="Sprachen">'+opts+'</optgroup>';
+$('#dst').innerHTML='<optgroup label="Blob"><option value="blob">Blob</option><option value="compact">Blob kompakt</option><option value="plain">Klartext</option></optgroup><optgroup label="Sprachen">'+opts+'</optgroup>';
 
-function blobify(t){
-  words=0;
-  return t.replace(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu,w=>{
-    const letters=w.replace(/[^\p{L}]/gu,'');
-    if(!letters||/^\p{N}/u.test(w))return w;
-    words++;
-    const m=w.match(/^(.+?)(n?['’](?:s|m|d|ll|re|ve|t))$/i);
-    const sfx=m?m[2]:'';
-    const up=letters.length>1&&letters===letters.toUpperCase()&&letters!==letters.toLowerCase();
-    const f=letters[0];
-    return (up?'BLOB':f!==f.toLowerCase()?'Blob':'blob')+sfx;
-  });
+/*CODEC*/
+// Blob = Morse code: "blob" is a dot, "fish" is a dash.
+const MT=`A.- B-... C-.-. D-.. E. F..-. G--. H.... I.. J.--- K-.- L.-.. M-- N-. O--- P.--. Q--.- R.-. S... T- U..- V...- W.-- X-..- Y-.-- Z--.. 0----- 1.---- 2..--- 3...-- 4....- 5..... 6-.... 7--... 8---.. 9----. ...-.-.- ,--..-- ?..--.. '.----. !-.-.-- /-..-. (-.--. )-.--.- &.-... :---... ;-.-.-. =-...- +.-.-. --....- _..--.- ".-..-. @.--.-. Ä.-.- Ö---. Ü..-- ß...--.. É..-.. Ñ--.-- Ç-.-.. À.--.- È.-..-`;
+const E=new Map(),D=new Map();
+for(const e of MT.split(' ')){E.set(e[0],e.slice(1));D.set(e.slice(1),e[0])}
+function encBlob(t){
+  return t.normalize('NFC').replace(/[’‘]/g,"'").replace(/[–—]/g,'-').split('\n').map(line=>
+    line.split(/\s+/).filter(Boolean).map(w=>[...w].map(c=>{
+      const k=E.get(c)??E.get(c.toUpperCase());
+      return k?k.replace(/\./g,'blob').replace(/-/g,'fish'):c;
+    }).join(' ')).join(' / ')).join('\n');
 }
-function render(){
-  $('#cnt').textContent=inp.value.length+' Zeichen';
-  if(!isBlob())return;
-  out.textContent=blobify(inp.value);
-  $('#stat').textContent=words?words+(words===1?' Wort':' Wörter')+' geblobbt':'';
+function decBlob(t){
+  return t.split('\n').map(line=>line.split(/\s+/).filter(Boolean).map(k=>{
+    if(k==='/')return ' ';
+    if(/^(?:blob|fish)+$/i.test(k))return (D.get(k.toLowerCase().replace(/blob/g,'.').replace(/fish/g,'-'))||'?').toLowerCase();
+    return k;
+  }).join('')).join('\n');
 }
-function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2600)}
-function setBusy(b){busy=b;const g=$('#go');g.disabled=b;g.textContent=b?'Übersetze …':'Übersetzen'}
+// Blob kompakt: text as blobfish words, written in CamelCase (BlobFishGulp ...). Any power-of-two word list works.
+const T='blob blobi blobo blobe bloba blobu blobom blobovi fish fishi fisho fishe fisha fishu fishom fishovi'.split(' ');
+const K=Math.log2(T.length),TI=new Map(T.map((w,i)=>[w,i]));
+const SYM=' etaoinshrdl'.split('').concat(['#sh','.'],'cumwfgypbvkjxqz'.split(''),['#pu','#um','#rw']);
+const I=new Map(SYM.map((x,i)=>[x,i])),SH=I.get('#sh');
+const UM='äöüß',UB='aous',P='0123456789.,!?\'"-:;()\n/@#%&*+=’–';
+function encCompact(t){
+  const s=[];
+  for(const ch of t.normalize('NFC')){
+    const lo=ch.toLowerCase(),cap=lo!==ch&&lo.length===1,b=cap?lo:ch;
+    if(I.has(b)){if(cap)s.push(SH);s.push(I.get(b))}
+    else if(b.length===1&&UM.includes(b)){if(cap)s.push(SH);s.push(I.get('#um'),I.get(UB[UM.indexOf(b)]))}
+    else if(P.includes(ch))s.push(I.get('#pu'),P.indexOf(ch));
+    else{let v=ch.codePointAt(0);s.push(I.get('#rw'));do{const g=v&15;v>>=4;s.push(g|(v?16:0))}while(v)}
+  }
+  let bits=s.map(x=>x.toString(2).padStart(5,'0')).join('');
+  while(bits.length%K)bits+='0';
+  let o='';
+  for(let i=0;i<bits.length;i+=K){const w=T[parseInt(bits.slice(i,i+K),2)];o+=w[0].toUpperCase()+w.slice(1)}
+  return o;
+}
+// Words are matched greedily, longest first. All words start with b or f and no word starts with a suffix letter,
+// so this is unambiguous and also reads lowercase, UPPERCASE and line-wrapped Blob kompakt.
+const TW=[...T].sort((a,b)=>b.length-a.length);
+function splitWords(run,strict){
+  const o=[];let i=0;
+  while(i<run.length){const w=TW.find(x=>run.startsWith(x,i));if(w){o.push(w);i+=w.length}else if(strict)return null;else i++}
+  return o;
+}
+const cTokens=t=>splitWords((t.match(/[A-Za-z]+/g)||[]).join('').toLowerCase());
+function decCompact(t){
+  const bits=cTokens(t).map(w=>TI.get(w)).filter(i=>i!==undefined).map(i=>i.toString(2).padStart(K,'0')).join('');
+  const s=[];for(let i=0;i+5<=bits.length;i+=5)s.push(parseInt(bits.slice(i,i+5),2));
+  let r='',up=false,i=0;
+  while(i<s.length){
+    const m=SYM[s[i++]];let ch;
+    if(m==='#sh'){up=true;continue}
+    else if(m==='#pu')ch=P[s[i++]];
+    else if(m==='#um')ch=UM[UB.indexOf(SYM[s[i++]])];
+    else if(m==='#rw'){let v=0,sh=0,g;do{g=s[i++];if(g===undefined)break;v+=(g&15)*2**sh;sh+=4}while(g&16);try{ch=String.fromCodePoint(v)}catch{}}
+    else ch=m;
+    if(ch!==undefined)r+=up?(ch==='ß'?'ẞ':ch.toUpperCase()):ch;
+    up=false;
+  }
+  return r;
+}
+// Auto-detect: lowercase blob/fish groups separated by spaces = Blob (Morse); a text made only of Blob kompakt words = Blob kompakt.
+function kindOf(t){
+  const x=t.trim();
+  if(/^(?:(?:blob|fish)+|\/)(?:\s+(?:(?:blob|fish)+|\/))*$/.test(x)&&/\s/.test(x))return 'blob';
+  // A single Morse letter without spaces (e.g. "blobfish") stays normal text.
+  if(/^(?:blob|fish)+$/.test(x)||!/^[A-Za-z\s]+$/.test(x))return 'text';
+  const w=splitWords(x.replace(/\s+/g,'').toLowerCase(),true);
+  if(!w)return 'text';const n=w.length;
+  // Real CamelCase (BlobFish...) needs 2 words; without capitals it needs 4, so "Blobfish" stays normal text.
+  return n>=(/[a-z][A-Z]/.test(x)?2:4)?'compact':'text';
+}
+/*END*/
+
+const $s=$('#stat');
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
 
 // Split into <=450-char requests (free API limit), keeping line breaks.
 function chunks(t){
   const parts=[];
   for(const seg of t.match(/[^\n]+|\n+/g)||[]){
     if(seg[0]==='\n'){parts.push({raw:seg});continue}
-    const start=parts.length;let cur='';
-    for(const s of seg.split(/(?<=[.!?。！？])\s+/)){
+    let cur='';
+    for(const s of seg.replace(/([.!?。！？])\s+/g,'$1\u0000').split('\u0000')){
       if(cur&&(cur+' '+s).length>450){parts.push({q:cur,sep:' '});cur=s}else cur=cur?cur+' '+s:s;
       while(cur.length>450){parts.push({q:cur.slice(0,450),sep:''});cur=cur.slice(450)}
     }
@@ -128,25 +188,48 @@ function chunks(t){
   return parts;
 }
 const dec=s=>new DOMParser().parseFromString(s,'text/html').documentElement.textContent;
+const cache=new Map();
 
-async function translate(){
-  if(isBlob()||busy||!inp.value.trim())return;
-  const s=$('#src').value,d=$('#dst').value;
-  if(s===d)return toast('Ausgangs- und Zielsprache sind gleich.');
-  setBusy(true);out.textContent='';$('#stat').textContent='';
-  let res='';
+async function translate(text,s,d){
+  ctl=new AbortController();const sg=ctl.signal;let res='';
   try{
-    for(const p of chunks(inp.value)){
+    for(const p of chunks(text)){
       if(p.raw!==undefined){res+=p.raw;continue}
-      const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(p.q)+'&langpair='+(s==='auto'?'Autodetect':s)+'|'+d);
-      const j=await r.json();
-      if(String(j.responseStatus)!=='200')throw {status:String(j.responseStatus),msg:j.responseDetails};
-      res+=dec(j.responseData.translatedText)+p.sep;
-      out.textContent=res;
+      const key=s+'|'+d+'|'+p.q;let tr=cache.get(key);
+      if(tr===undefined){
+        const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(p.q)+'&langpair='+s+'|'+d,{signal:sg});
+        const j=await r.json();if(sg.aborted)return;
+        const st=String(j.responseStatus);
+        if(st==='200')tr=dec(j.responseData.translatedText);
+        else if(st==='403'&&/distinct/i.test(j.responseDetails||''))tr=p.q;
+        else throw {status:st,msg:j.responseDetails};
+        cache.set(key,tr);
+      }
+      res+=tr+p.sep;
     }
+    out.textContent=res;$s.textContent='';
   }catch(e){
-    toast(e&&e.status==='429'?'Das Tageslimit des Übersetzungsdienstes ist erreicht. Versuch es später nochmal.':e&&e.status?'Der Dienst meldet: '+(e.msg||'Fehler'):'Keine Verbindung zum Übersetzungsdienst. Bist du online?');
-  }finally{setBusy(false)}
+    if(sg.aborted||(e&&e.name==='AbortError'))return;
+    $s.textContent=e&&e.status==='429'?'Tageslimit des Übersetzungsdienstes erreicht.':e&&e.status?'Dienst meldet: '+(e.msg||'Fehler'):'Keine Verbindung zum Übersetzungsdienst.';
+  }
+}
+
+function update(){
+  clearTimeout(timer);if(ctl)ctl.abort();
+  const raw=inp.value,src=$('#src').value,dst=$('#dst').value;
+  $('#cnt').textContent=raw.length+' Zeichen';
+  const kind=src==='auto'?kindOf(raw):(src==='blob'||src==='compact'?src:'text');
+  const text=kind==='blob'?decBlob(raw):kind==='compact'?decCompact(raw):raw;
+  const enc={blob:encBlob,compact:encCompact,plain:x=>x}[src==='auto'&&kind===dst?'plain':dst];
+  if(enc){
+    out.textContent=enc(text);
+    $s.textContent=raw.trim()?out.textContent.length+' Zeichen':'';
+    return;
+  }
+  if(!text.trim()){out.textContent='';$s.textContent='';return}
+  if(kind==='text'&&src===dst){out.textContent=text;$s.textContent='';return}
+  $s.textContent='Übersetze …';
+  timer=setTimeout(()=>translate(text,kind==='text'&&src!=='auto'?src:'Autodetect',dst),700);
 }
 async function copy(){
   const t=out.textContent;if(!t)return toast('Noch nichts zu kopieren.');
@@ -155,24 +238,25 @@ async function copy(){
   }
   toast('Kopiert!');
 }
-function clearOut(){out.textContent='';$('#stat').textContent=''}
 
-$('#dst').onchange=()=>{document.body.classList.toggle('blob',isBlob());clearOut();render()};
-inp.addEventListener('input',render);
-inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();translate()}});
-$('#go').onclick=translate;$('#cp').onclick=copy;
-$('#clr').onclick=()=>{inp.value='';clearOut();render();inp.focus()};
-$('#ex').onclick=()=>{inp.value='Hello, World! I can’t believe it’s already Wednesday – don’t you think? WOW, what a day!';render()};
+inp.addEventListener('input',update);
+$('#src').onchange=$('#dst').onchange=update;
+$('#cp').onclick=copy;
+$('#clr').onclick=()=>{inp.value='';update();inp.focus()};
+$('#ex').onclick=()=>{inp.value='Hello, World! I can’t believe it’s already Wednesday – don’t you think? WOW, what a day!';update()};
 $('#swap').onclick=()=>{
-  const s=$('#src'),d=$('#dst');if(s.value==='auto')return toast('Wähle zuerst eine Ausgangssprache.');
-  [s.value,d.value]=[d.value,s.value];
-  if(out.textContent&&!busy){inp.value=out.textContent;clearOut();render()}
+  const s=$('#src'),d=$('#dst'),sv=s.value,dv=d.value,bl=v=>v==='blob'||v==='compact';
+  if(sv==='auto'){if(bl(dv)){s.value=dv;d.value='plain'}else return toast('Wähle zuerst eine Ausgangssprache.')}
+  else if(dv==='plain'){if(bl(sv)){d.value=sv;s.value='auto'}else return toast('Wähle eine andere Zielsprache.')}
+  else{s.value=dv;d.value=sv}
+  if(out.textContent&&$s.textContent!=='Übersetze …')inp.value=out.textContent;
+  update();
 };
 $('#theme').onclick=()=>{
   const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
   r.dataset.theme=dark?'light':'dark';
 };
-render();
+update();
 </script>
 </body>
 </html>
