@@ -98,23 +98,35 @@ const MT=`A.- B-... C-.-. D-.. E. F..-. G--. H.... I.. J.--- K-.- L.-.. M-- N-. 
 const E=new Map(),D=new Map();
 for(const e of MT.split(' ')){E.set(e[0],e.slice(1));D.set(e.slice(1),e[0])}
 // Russian/Bulgarian Morse reuses the Latin codes, so the code alone can't tell the scripts apart.
-// A single switch group (-...- = fishblobblobblobfish) is written whenever the text changes between Latin and Cyrillic.
+// A single switch group (-.-.- = fishblobfishblobfish) is written whenever the text changes between Latin and Cyrillic.
 const MC='А.- Б-... В.-- Г--. Д-.. Е. Ж...- З--.. И.. Й.--- К-.- Л.-.. М-- Н-. О--- П.--. Р.-. С... Т- У..- Ф..-. Х.... Ц-.-. Ч---. Ш---- Щ--.- Ъ--.-- Ы-.-- Ь-..- Э..-.. Ю..-- Я.-.-. Ї.---.';
-const EC=new Map(),DC=new Map(),SW='-...-';
+const EC=new Map(),DC=new Map(),SW='-.-.-';
 for(const e of MC.split(' ')){EC.set(e[0],e.slice(1));DC.set(e.slice(1),e[0])}
 const toBlob=k=>k.replace(/\./g,'blob').replace(/-/g,'fish');
+// Characters Morse can't write become a close alternative (é→e, Ł→l, і→и, ё→е, “ → ") or are left out (emoji, kanji ...).
+const FOLD={'ß':'ss','æ':'ae','œ':'oe','ø':'o','ł':'l','đ':'d','ð':'d','þ':'th','ı':'i','ħ':'h','ŧ':'t',
+  'і':'и','є':'э','ґ':'г','ј':'й','љ':'ль','њ':'нь','ђ':'д','ћ':'ч','џ':'дж','ѕ':'з',
+  '“':'"','”':'"','„':'"','«':'"','»':'"','…':'...'};
+const known=c=>E.has(c)||E.has(c.toUpperCase())||E.has(c.toLowerCase())||EC.has(c.toUpperCase());
+function expand(c){
+  if(known(c))return [c];
+  const f=FOLD[c.toLowerCase()];
+  if(f)return [...f].flatMap(expand);
+  const d=c.normalize('NFD').replace(/\p{M}/gu,'');
+  return d&&d!==c?[...d].flatMap(expand):[];
+}
 function encBlob(t){
   let cyr=false;
+  const tok=c=>{
+    const kc=EC.get(c.toUpperCase());
+    if(kc!==undefined){const sw=cyr?'':toBlob(SW)+' ';cyr=true;return sw+toBlob(kc)}
+    const k=E.get(c)??E.get(c.toUpperCase())??E.get(c.toLowerCase());
+    const sw=cyr&&DC.has(k)?toBlob(SW)+' ':'';
+    if(sw)cyr=false;
+    return sw+toBlob(k);
+  };
   return t.normalize('NFC').replace(/[’‘]/g,"'").replace(/[–—]/g,'-').split('\n').map(line=>
-    line.split(/\s+/).filter(Boolean).map(w=>[...w].map(c=>{
-      const kc=EC.get(c.toUpperCase());
-      if(kc!==undefined){const sw=cyr?'':toBlob(SW)+' ';cyr=true;return sw+toBlob(kc)}
-      const k=E.get(c)??E.get(c.toUpperCase());
-      if(!k)return c;
-      const sw=cyr&&/^[A-Za-z]$/.test(c)?toBlob(SW)+' ':'';
-      if(sw)cyr=false;
-      return sw+toBlob(k);
-    }).join(' ')).join(' / ')).join('\n');
+    line.split(/\s+/).filter(Boolean).map(w=>[...w].flatMap(expand).map(tok)).filter(a=>a.length).map(a=>a.join(' ')).join(' / ')).join('\n');
 }
 function decBlob(t){
   let cyr=false;
